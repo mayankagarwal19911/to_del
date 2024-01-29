@@ -25,7 +25,8 @@ jobs:
     steps:
       - name:  Run a script
         run: |
-          echo "I am running a job in ${github.env} environment"
+          echo "I am running a job in ${{ github.env }} environment"
+          
 
   QA:
     # The type of runner that the job will run on
