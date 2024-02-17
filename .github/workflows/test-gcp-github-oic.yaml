@@ -1,0 +1,15 @@
+name: Test OIDC
+
+on:
+  workflow_dispatch:
+  
+jobs:
+  Authenticate:
+    runs-on: ubuntu-latest
+    steps:
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v0.4.0'
+        with:
+          workload_identity_provider: 'projects/1073411163963/locations/global/workloadIdentityPools/github-action-pool/providers/github'
+          service_account: 'github-action-sa@xergyinc-1493409480060.iam.gserviceaccount.com'
