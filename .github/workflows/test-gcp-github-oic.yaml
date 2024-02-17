@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   
 jobs:
-  Authenticate:
+  authenticate:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
@@ -16,3 +16,14 @@ jobs:
         with:
           workload_identity_provider: 'projects/1073411163963/locations/global/workloadIdentityPools/github-action-pool/providers/github'
           service_account: 'github-action-sa@xergyinc-1493409480060.iam.gserviceaccount.com'
+          
+  install-gcloud:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 363.0.0'
+
+      - name: 'Use gcloud CLI'
+        run: 'gcloud iam service-accounts list'
