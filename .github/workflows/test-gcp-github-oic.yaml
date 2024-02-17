@@ -26,4 +26,4 @@ jobs:
           version: '>= 363.0.0'
 
       - name: 'Use gcloud CLI'
-        run: 'gcloud iam service-accounts list --project=XergyInc'
+        run: 'gcloud iam service-accounts list --project=xergyinc-1493409480060'
