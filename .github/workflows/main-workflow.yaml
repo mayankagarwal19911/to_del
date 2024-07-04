@@ -13,18 +13,13 @@ jobs:
         id: check-prs
         run: |
           # ...
-          echo "PR_NUMBER=abctest" >> $GITHUB_OUTPUT
+          # echo "PR_NUMBER=abctest" >> $GITHUB_OUTPUT
+          echo "::set-output name=PR_NUMBER::Hello from job1"
 
   publish:
     needs: [job1]
     uses: mayankagarwal19911/to_del/.github/workflows/re-usable-workflow.yaml@main
     with:
       my_var: ${{ needs.job1.outputs.pr-number }}
-
-    # runs-on: ubuntu-latest
-    # steps:
-    # - name: test
-    #   run: |
-    #     echo ${{ needs.job1.outputs.pr-number }}
 
 
