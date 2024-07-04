@@ -5,7 +5,7 @@ on:
     inputs:
       my_var:
         required: true
-        type: string
+        type: number
 
 jobs:
   read-env-var:
