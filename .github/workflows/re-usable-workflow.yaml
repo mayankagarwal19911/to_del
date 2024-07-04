@@ -12,4 +12,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Read environment variable
-      run: echo "The value of my_var is: ${{ inputs.my_var }}"
+      run: |
+        echo "The value of my_var is: ${{github.event.inputs.my_var}}"
