@@ -7,18 +7,16 @@ jobs:
   job1:
     runs-on: ubuntu-latest
     outputs:
-      my_var: ${{ steps.set-output.outputs.my_var }}
+      pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Check PRs
+        id: check-prs
+        run: |
+          # ...
+          echo "PR_NUMBER=1234567" >> $GITHUB_OUTPUT
 
-      - name: Set environment variable
-        id: set-output
-        run: echo "::set-output name=my_var::Hello from job1"
-
-  job2:
-    needs: job1
+  publish:
+    needs: [job1]
     uses: mayankagarwal19911/to_del/.github/workflows/re-usable-workflow.yaml@main
-    
     with:
-      my_var: ${{ needs.job1.outputs.my_var }}
+      my_var: ${{ needs.check-pr.outputs.pr-number }}
