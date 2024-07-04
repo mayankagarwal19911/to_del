@@ -18,6 +18,6 @@ jobs:
 
   job2:
     needs: job1
-    uses: ./.github/workflows/reusable-workflow.yml
+    uses: mayankagarwal19911/to_del/.github/workflows/re-usable-workflow.yaml@main
     with:
       my_var: ${{ needs.job1.outputs.my_var }}
