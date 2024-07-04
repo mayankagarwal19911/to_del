@@ -13,7 +13,7 @@ jobs:
         id: check-prs
         run: |
           # ...
-          echo "PR_NUMBER=1234567" >> $GITHUB_OUTPUT
+          echo "PR_NUMBER=abctest" >> $GITHUB_OUTPUT
 
   publish:
     needs: [job1]
