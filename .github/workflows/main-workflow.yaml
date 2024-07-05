@@ -12,7 +12,7 @@ jobs:
       - name: Check PRs
         id: check-prs
         run: |
-          if [ "a" == "a" ]; then
+          if [ "a" == "b" ]; then
             echo "PR_NUMBER=if_condition" >> $GITHUB_ENV
           else
             echo "PR_NUMBER=else_condition" >> $GITHUB_ENV
