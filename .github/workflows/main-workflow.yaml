@@ -7,7 +7,7 @@ jobs:
   job1:
     runs-on: ubuntu-latest
     outputs:
-      pr-number: ${{ steps.check-prs.outputs.PR_NUMBER }}
+      pr-number: ${{ steps.set-output.outputs.PR_NUMBER }}
     steps:
       - name: Check PRs
         id: check-prs
