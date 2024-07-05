@@ -19,7 +19,7 @@ jobs:
           fi
       - name: Set output
         id: set-output
-        run: echo "::set-output name=PR_NUMBER::${{ env.PR_NUMBER }}"
+        run: echo "::set-output name=pr-number::${{ env.PR_NUMBER }}"
         # ...
         # echo "PR_NUMBER=abctest" >> $GITHUB_OUTPUT
         # echo "PR_NUMBER=$(echo ${{ env.PR_NUMBER }})" >> $GITHUB_OUTPUT
