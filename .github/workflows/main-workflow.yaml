@@ -12,9 +12,13 @@ jobs:
       - name: Check PRs
         id: check-prs
         run: |
+          if ["a" == "a"]; then
+            echo "PR_NUMBER=if_condition"
+          else
+            echo "PR_NUMBER=else_condition"
           # ...
           # echo "PR_NUMBER=abctest" >> $GITHUB_OUTPUT
-          echo "::set-output name=PR_NUMBER::Hello from job1"
+          echo "::set-output name=PR_NUMBER::${{ env.PR_NUMBER }}"
 
   publish:
     needs: [job1]
