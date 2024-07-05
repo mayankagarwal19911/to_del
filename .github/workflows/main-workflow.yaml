@@ -17,9 +17,12 @@ jobs:
           else
             echo "PR_NUMBER=else_condition" >> $GITHUB_ENV
           fi
-          # ...
-          # echo "PR_NUMBER=abctest" >> $GITHUB_OUTPUT
-          echo "PR_NUMBER=$(echo ${{ env.PR_NUMBER }})" >> $GITHUB_OUTPUT
+      - name: Set output
+        id: set-output
+        run: echo "::set-output name=PR_NUMBER::${{ env.PR_NUMBER }}"
+        # ...
+        # echo "PR_NUMBER=abctest" >> $GITHUB_OUTPUT
+        # echo "PR_NUMBER=$(echo ${{ env.PR_NUMBER }})" >> $GITHUB_OUTPUT
 
   publish:
     needs: [job1]
