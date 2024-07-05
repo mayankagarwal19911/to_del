@@ -16,6 +16,7 @@ jobs:
             echo "PR_NUMBER=if_condition"
           else
             echo "PR_NUMBER=else_condition"
+          fi
           # ...
           # echo "PR_NUMBER=abctest" >> $GITHUB_OUTPUT
           echo "::set-output name=PR_NUMBER::${{ env.PR_NUMBER }}"
