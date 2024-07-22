@@ -1,0 +1,30 @@
+name: Update YAML with yq
+
+on: workflow_dispatch
+
+jobs:
+  update-yaml:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Set environment variable
+        run: echo "NEW_VERSION=2.0" >> $GITHUB_ENV
+
+      - name: Create example YAML file
+        run: |
+          echo "name: Example" > example.yaml
+          echo "version: 1.0" >> example.yaml
+
+      - name: Update version in YAML file using yq
+        run: yq e -i '.version = env(NEW_VERSION)' example.yaml
+
+      - name: Display updated YAML file
+        run: cat example.yaml
