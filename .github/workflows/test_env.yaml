@@ -1,7 +1,3 @@
-
-
-name: Update YAML with yq
-
 on: workflow_dispatch
 
 jobs:
@@ -14,20 +10,13 @@ jobs:
 
       - name: Install yq
         run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
+          curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
 
-
-      - name: Update DNS Name in YAML file using yq
+      - name: Merge DNS Names in YAML file using yq
         run: |
-          echo "dnsname=$(yq e '.dnsname + .dnsname2 | del(.dnsname2)' ${GITHUB_WORKSPACE}/example.yaml)" >> GITHUB_ENV
-          echo "value is ${dnsNames}"
-          yq e -i '.spec.dnsName = $dnsname' ${GITHUB_WORKSPACE}/example_2.yaml
-
-          # echo "dnsNames=$(yq e '.dnsname + .dnsname2' ${GITHUB_WORKSPACE}/example.yaml)" >> $GITHUB_ENV
-          # echo "value is ${dnsNames}"
-          # # yq e -i '.spec.dnsName = $dnsNames' ${GITHUB_WORKSPACE}/example_2.yaml
+          # Merge lists from dnsname and dnsname2 and save it to a new file
+          yq e -i '.dnsname = (.dnsname + .dnsname2) | del(.dnsname2)' ${GITHUB_WORKSPACE}/example.yaml > ${GITHUB_WORKSPACE}/example_2.yaml
 
       - name: Display updated YAML file
         run: cat ${GITHUB_WORKSPACE}/example_2.yaml
-
