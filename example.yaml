@@ -1,5 +1,4 @@
 dnsname:
-  url:
-    - url1
-    - url2
-    - url3
+  - url1
+  - url2
+  - url3
