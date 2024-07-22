@@ -19,9 +19,7 @@ jobs:
         run: |
           # Merge lists from dnsname and dnsname2 and save it to a new file
           echo "dnsnames=$(yq e -i '.dnsname' ${GITHUB_WORKSPACE}/example.yaml)"
-          echo $dnsnames
-          
-          # > ${GITHUB_WORKSPACE}/example_2.yaml
+          echo $dnsnames > ${GITHUB_WORKSPACE}/example_2.yaml
           
 
       - name: Display updated YAML file
