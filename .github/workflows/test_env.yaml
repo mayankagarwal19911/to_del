@@ -1,3 +1,5 @@
+
+
 name: Update YAML with yq
 
 on: workflow_dispatch
@@ -12,42 +14,19 @@ jobs:
 
       - name: Install yq
         run: |
-          curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq
-          chmod +x /usr/local/bin/yq
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
 
-      - name: Merge DNS Names in YAML file using yq
+
+      - name: Update DNS Name in YAML file using yq
         run: |
-          # Merge lists from dnsname and dnsname2 and save it to a new file
-          yq e '.dnsname = (.dnsname + .dnsname2) | del(.dnsname2)' ${GITHUB_WORKSPACE}/example.yaml > ${GITHUB_WORKSPACE}/updated_example.yaml
+          yq e 'dnsname = (.dnsname + .dnsname2) | del(.dnsname2)' ${GITHUB_WORKSPACE}/example.yaml
+          yq e -i '.spec.dnsName = $dnsNames' ${GITHUB_WORKSPACE}/example_2.yaml
+
+          # echo "dnsNames=$(yq e '.dnsname + .dnsname2' ${GITHUB_WORKSPACE}/example.yaml)" >> $GITHUB_ENV
+          # echo "value is ${dnsNames}"
+          # # yq e -i '.spec.dnsName = $dnsNames' ${GITHUB_WORKSPACE}/example_2.yaml
 
       - name: Display updated YAML file
-        run: cat ${GITHUB_WORKSPACE}/updated_example.yaml
-
-
-# name: Update YAML with yq
-
-# on: workflow_dispatch
-
-# jobs:
-#   update-yaml:
-#     runs-on: ubuntu-latest
-
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v2
-
-#       - name: Install yq
-#         run: |
-#           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-#           sudo chmod +x /usr/local/bin/yq
-
-
-#       - name: Update DNS Name in YAML file using yq
-#         run: |
-#           echo "dnsNames=$(yq e '.dnsname + .dnsname2' ${GITHUB_WORKSPACE}/example.yaml)" >> $GITHUB_ENV
-#           echo "value is ${dnsNames}"
-#           # yq e -i '.spec.dnsName = $dnsNames' ${GITHUB_WORKSPACE}/example_2.yaml
-
-#       - name: Display updated YAML file
-#         run: cat ${GITHUB_WORKSPACE}/example_2.yaml
+        run: cat ${GITHUB_WORKSPACE}/example_2.yaml
 
