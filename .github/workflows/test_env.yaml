@@ -20,8 +20,9 @@ jobs:
 
       - name: Update DNS Name in YAML file using yq
         run: |
-          yq e 'dnsname = (.dnsname + .dnsname2) | del(.dnsname2)' ${GITHUB_WORKSPACE}/example.yaml
-          yq e -i '.spec.dnsName = $dnsNames' ${GITHUB_WORKSPACE}/example_2.yaml
+          echo "dnsname=$( yq e '.dnsname + .dnsname2 | del(.dnsname2)' ${GITHUB_WORKSPACE}/example.yaml" >> GITHUB_ENV
+          echo "value is ${dnsNames}"
+          yq e -i '.spec.dnsName = $dnsname' ${GITHUB_WORKSPACE}/example_2.yaml
 
           # echo "dnsNames=$(yq e '.dnsname + .dnsname2' ${GITHUB_WORKSPACE}/example.yaml)" >> $GITHUB_ENV
           # echo "value is ${dnsNames}"
