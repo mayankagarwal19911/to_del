@@ -18,7 +18,11 @@ jobs:
       - name: Merge DNS Names in YAML file using yq
         run: |
           # Merge lists from dnsname and dnsname2 and save it to a new file
-          yq e '.spec.dnsname = (.dnsname)' ${GITHUB_WORKSPACE}/example.yaml > ${GITHUB_WORKSPACE}/example_2.yaml
+          echo "dnsnames=$(yq e -i '.dnsname' ${GITHUB_WORKSPACE}/example.yaml)"
+          echo $dnsnames
+          
+          # > ${GITHUB_WORKSPACE}/example_2.yaml
+          
 
       - name: Display updated YAML file
         run: cat ${GITHUB_WORKSPACE}/example_2.yaml
