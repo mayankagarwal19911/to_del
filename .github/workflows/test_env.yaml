@@ -1,3 +1,5 @@
+name: Update YAML with yq
+
 on: workflow_dispatch
 
 jobs:
@@ -16,7 +18,7 @@ jobs:
       - name: Merge DNS Names in YAML file using yq
         run: |
           # Merge lists from dnsname and dnsname2 and save it to a new file
-          yq e -i '.dnsname = (.dnsname + .dnsname2) | del(.dnsname2)' ${GITHUB_WORKSPACE}/example.yaml > ${GITHUB_WORKSPACE}/example_2.yaml
+          yq e '.dnsname = (.dnsname + .dnsname2) | del(.dnsname2)' ${GITHUB_WORKSPACE}/example.yaml > ${GITHUB_WORKSPACE}/updated_example.yaml
 
       - name: Display updated YAML file
-        run: cat ${GITHUB_WORKSPACE}/example_2.yaml
+        run: cat ${GITHUB_WORKSPACE}/updated_example.yaml
