@@ -2,3 +2,8 @@ dnsname:
   - url1
   - url2
   - url3
+
+dnsname2:
+  - url1
+  - url2
+  - url3
