@@ -17,7 +17,7 @@ jobs:
       - name: Render k8s manifests
         env:
           imageTag: ${{ env.imageTag }}
-        run: |
+        run: |-
           envsubst < test_deployment.yaml > rendered_deployment.yaml
           cat rendered_deployment.yaml
         
