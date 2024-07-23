@@ -1,0 +1,21 @@
+name: Update YAML with yq
+
+on: workflow_dispatch
+
+jobs:
+  update-yaml:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Taggig
+        run: |
+          echo "imageTag=${{ github.run_number }}" >> $GITHUB_ENV
+          
+      - name: Render k8s manifests
+        run: |
+          envsubst < test_deployment.yaml
+          cat test_deployment.yaml
+        
