@@ -1,4 +1,4 @@
-name: Update YAML with yq
+name: Test envsubst
 
 on: workflow_dispatch
 
