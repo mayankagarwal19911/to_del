@@ -16,6 +16,6 @@ jobs:
           
       - name: Render k8s manifests
         run: |
-          envsubst < test_deployment.yaml > deployment.yml 
-          cat deployment.yaml
+          envsubst < test_deployment.yaml
+          cat test_deployment.yaml
         
