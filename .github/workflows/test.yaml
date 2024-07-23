@@ -15,7 +15,9 @@ jobs:
           echo "imageTag=${{ github.run_number }}" >> $GITHUB_ENV
           
       - name: Render k8s manifests
+        env:
+          imageTag: ${{ env.imageTag }}
         run: |
-          envsubst < test_deployment.yaml
-          cat test_deployment.yaml
+          envsubst < test_deployment.yaml > rendered_deployment.yaml
+          cat rendered_deployment.yaml
         
