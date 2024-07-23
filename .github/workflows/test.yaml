@@ -18,6 +18,6 @@ jobs:
         env:
           imageTag: ${{ env.imageTag }}
         run: |-
-          envsubst < test_deployment.yaml > rendered_deployment.yaml
-          cat rendered_deployment.yaml
+          envsubst < test_deployment.yaml
+          cat test_deployment.yaml
         
