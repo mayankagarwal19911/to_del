@@ -27,7 +27,7 @@ jobs:
 
   publish:
     needs: [job1]
-    uses: mayankagarwal19911/to_del/.github/workflows/re-usable-workflow.yaml@main
+    uses: mayankagarwal19911/to_del/.github/workflows/re-usable-workflow.yaml@TEST
     with:
       my_var: ${{ needs.job1.outputs.pr-number }}
 
