@@ -1,4 +1,4 @@
-name: Test envsubst For SAL
+name: Test envsubst For SQL
 
 on: workflow_dispatch
 
