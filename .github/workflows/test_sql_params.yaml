@@ -24,7 +24,7 @@ jobs:
         env:
           DB_NAME: test-0123
         run: |
-          envst < test_param_sql.sql > rendered_param_sql.sql
+          envst < ../../test_param_sql.sql > rendered_param_sql.sql
           cat rendered_param_sql.sql
           
 
