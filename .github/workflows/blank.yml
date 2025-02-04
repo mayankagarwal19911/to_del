@@ -37,12 +37,18 @@ jobs:
           # pytest --version
           # echo "${{ startsWith('${{ github.event.inputs.namespace }}', 'test') }}"
           # echo "${{ github.event.inputs.namespace }}"
-          echo "Result: ${{ startsWith(github.event.inputs.namespace, 'test') }}"
-          echo $Result
-          if [ $Result ]; then
-            echo "If condition..."
+          # echo "Result: ${{ startsWith(github.event.inputs.namespace, 'test') }}"
+          # echo $Result
+          # if [ startsWith(github.event.inputs.namespace, 'test') ]; then
+          #   echo "If condition..."
+          # else
+          #   echo "Else condition..."
+          # fi
+          NAMESPACE="${{ github.event.inputs.namespace }}"  # Assign GitHub variable to shell variable
+          if [[ "$NAMESPACE" == test* ]]; then
+            echo "Namespace starts with 'test'"
           else
-            echo "Else condition..."
+            echo "Namespace does NOT start with 'test'"
           fi
           
 
