@@ -39,7 +39,7 @@ jobs:
           # echo "${{ github.event.inputs.namespace }}"
           echo "Result: ${{ startsWith(github.event.inputs.namespace, 'test') }}"
           echo $Result
-          if [ "${{ startsWith('${{ github.event.inputs.namespace }}', 'test') }}" == "true" ]; then
+          if [ $Result ]; then
             echo "If condition..."
           else
             echo "Else condition..."
