@@ -35,7 +35,8 @@ jobs:
           # python -m pip install --upgrade pip
           # pip install pytest pytest-html
           # pytest --version
-          if [ "${{ contains('${{ github.event.inputs.namespace }}', 'test-') }}" == "true" ]; then
+          echo "${{ github.event.inputs.namespace }}"
+          if [ "${{ contains('${{ github.event.inputs.namespace }}', 'test') }}" == "true" ]; then
             echo "If condition..."
           else
             echo "Else condition..."
