@@ -15,7 +15,7 @@ on:
       namespace:
         required: true
         type: string
-        default: abc-test-abc
+        default: test-abc
         
       
 
