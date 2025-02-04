@@ -35,9 +35,9 @@ jobs:
           # python -m pip install --upgrade pip
           # pip install pytest pytest-html
           # pytest --version
-          echo "${{ contains('${{ github.event.inputs.namespace }}', 'test') }}"
+          echo "${{ startsWith('${{ github.event.inputs.namespace }}', 'test') }}"
           echo "${{ github.event.inputs.namespace }}"
-          if [ "${{ contains('${{ github.event.inputs.namespace }}', 'test') }}" == "true" ]; then
+          if [ "${{ startsWith('${{ github.event.inputs.namespace }}', 'test') }}" == "true" ]; then
             echo "If condition..."
           else
             echo "Else condition..."
