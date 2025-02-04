@@ -45,10 +45,9 @@ jobs:
           #   echo "Else condition..."
           # fi
           NAMESPACE="${{ github.event.inputs.namespace }}"  # Assign GitHub variable to shell variable
-          if [ "$NAMESPACE" == "test"* ]; then
-            echo "Namespace starts with 'test'"
-          else
-            echo "Namespace does NOT start with 'test'"
-          fi
+          case "$NAMESPACE" in
+            test*) echo "Namespace starts with 'test'" ;;
+            *) echo "Namespace does NOT start with 'test'" ;;
+          esac
           
 
