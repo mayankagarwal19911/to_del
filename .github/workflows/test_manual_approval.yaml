@@ -1,4 +1,4 @@
-name: Manual Approval Workflow
+name: Deploy with Manual Approval
 
 on:
   push:
@@ -12,16 +12,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Run build
-        run: echo "Building project..."
+      - name: Build the project
+        run: echo "Building the project..."
 
   deploy:
     name: Deploy to Production
     needs: build
     runs-on: ubuntu-latest
     environment:
-      name: production
+      name: production  # Must match the environment you create in GitHub
       url: https://yourapp.example.com
     steps:
-      - name: Deploying...
+      - name: Deploying to Production
         run: echo "Deploying to PRODUCTION..."
+
+  post-deploy:
+    name: Post Deployment Tasks
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: success()  # only runs if deploy was approved and successful
+    steps:
+      - name: Notify success
+        run: echo "Deployment approved and completed. Running post-deploy tasks..."
