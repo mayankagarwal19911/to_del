@@ -1,0 +1,27 @@
+name: Manual Approval Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run build
+        run: echo "Building project..."
+
+  deploy:
+    name: Deploy to Production
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://yourapp.example.com
+    steps:
+      - name: Deploying...
+        run: echo "Deploying to PRODUCTION..."
