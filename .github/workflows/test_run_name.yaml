@@ -1,0 +1,21 @@
+env:
+  EENV: Dev
+  
+name: "test run name"
+run-name: "${{ env.EENV }}"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  Run_name:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name:  Run a script
+        run: |
+          echo "I am running a job"
+
+
