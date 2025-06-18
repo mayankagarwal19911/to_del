@@ -7,17 +7,17 @@ on:
         description: 'Create Proxy'
         required: true
         default: false
-        type: bool
+        type: boolean
       deploy_proxy:
         description: 'Deploy Proxy'
         required: true
         default: false
-        type: bool
+        type: boolean
       delete_undeploy_api_proxy:
         description: 'Delete & Undeploy Proxy'
         required: true
         default: false
-        type: bool
+        type: boolean
 
 run-name: >-
   ${{ 
