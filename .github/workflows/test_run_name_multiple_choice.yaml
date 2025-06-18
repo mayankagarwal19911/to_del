@@ -24,8 +24,7 @@ run-name: >-
     inputs.deploy_proxy == 'true' && inputs.delete_undeploy_api_proxy == 'true' && 'Deploy Proxy + Delete and Undeploy Proxy' ||
     inputs.create_proxy == 'true' && 'Create Proxy' ||
     inputs.deploy_proxy == 'true' && 'Deploy Proxy' ||
-    inputs.delete_undeploy_api_proxy == 'true' && 'Delete and Undeploy Proxy' ||
-    'No Actions Selected'
+    inputs.delete_undeploy_api_proxy == 'true' && 'Delete and Undeploy Proxy'
   }}
 
 jobs:
