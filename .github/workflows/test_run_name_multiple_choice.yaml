@@ -18,22 +18,22 @@ on:
 
 run-name: >-
   ${{ 
-    toLower(inputs.create_proxy) == 'true' && toLower(inputs.deploy_proxy) == 'true' && toLower(inputs.delete_undeploy_api_proxy) == 'true' && 'Create Proxy + Deploy Proxy + Delete and Undeploy Proxy' ||
-    toLower(inputs.create_proxy) == 'true' && toLower(inputs.deploy_proxy) == 'true' && 'Create Proxy + Deploy Proxy' ||
-    toLower(inputs.create_proxy) == 'true' && toLower(inputs.delete_undeploy_api_proxy) == 'true' && 'Create Proxy + Delete and Undeploy Proxy' ||
-    toLower(inputs.deploy_proxy) == 'true' && toLower(inputs.delete_undeploy_api_proxy) == 'true' && 'Deploy Proxy + Delete and Undeploy Proxy' ||
-    toLower(inputs.create_proxy) == 'true' && 'Create Proxy' ||
-    toLower(inputs.deploy_proxy) == 'true' && 'Deploy Proxy' ||
-    toLower(inputs.delete_undeploy_api_proxy) == 'true' && 'Delete and Undeploy Proxy' ||
+    inputs.create_proxy == 'true' && inputs.deploy_proxy == 'true' && inputs.delete_undeploy_api_proxy == 'true' && 'Create Proxy + Deploy Proxy + Delete and Undeploy Proxy' ||
+    inputs.create_proxy == 'true' && inputs.deploy_proxy == 'true' && 'Create Proxy + Deploy Proxy' ||
+    inputs.create_proxy == 'true' && inputs.delete_undeploy_api_proxy == 'true' && 'Create Proxy + Delete and Undeploy Proxy' ||
+    inputs.deploy_proxy == 'true' && inputs.delete_undeploy_api_proxy == 'true' && 'Deploy Proxy + Delete and Undeploy Proxy' ||
+    inputs.create_proxy == 'true' && 'Create Proxy' ||
+    inputs.deploy_proxy == 'true' && 'Deploy Proxy' ||
+    inputs.delete_undeploy_api_proxy == 'true' && 'Delete and Undeploy Proxy' ||
     'No Actions Selected'
   }}
 
 jobs:
-  print-selection:
+  show-flags:
     runs-on: ubuntu-latest
     steps:
-      - name: Show selected actions
+      - name: Print inputs
         run: |
-          echo "create_proxy: ${{ inputs.create_proxy }}"
-          echo "deploy_proxy: ${{ inputs.deploy_proxy }}"
-          echo "delete_undeploy_api_proxy: ${{ inputs.delete_undeploy_api_proxy }}"
+          echo "create_proxy = ${{ inputs.create_proxy }}"
+          echo "deploy_proxy = ${{ inputs.deploy_proxy }}"
+          echo "delete_undeploy_api_proxy = ${{ inputs.delete_undeploy_api_proxy }}"
