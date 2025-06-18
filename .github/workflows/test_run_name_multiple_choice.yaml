@@ -6,25 +6,28 @@ on:
       create_proxy:
         description: 'Create Proxy'
         required: true
-        default: 'false'
+        default: false
+        type: bool
       deploy_proxy:
         description: 'Deploy Proxy'
         required: true
-        default: 'false'
+        default: false
+        type: bool
       delete_undeploy_api_proxy:
         description: 'Delete & Undeploy Proxy'
         required: true
-        default: 'false'
+        default: false
+        type: bool
 
 run-name: >-
   ${{ 
-    inputs.create_proxy == 'true' && inputs.deploy_proxy == 'true' && inputs.delete_undeploy_api_proxy == 'true' && 'Create Proxy + Deploy Proxy + Delete and Undeploy Proxy' ||
-    inputs.create_proxy == 'true' && inputs.deploy_proxy == 'true' && 'Create Proxy + Deploy Proxy' ||
-    inputs.create_proxy == 'true' && inputs.delete_undeploy_api_proxy == 'true' && 'Create Proxy + Delete and Undeploy Proxy' ||
-    inputs.deploy_proxy == 'true' && inputs.delete_undeploy_api_proxy == 'true' && 'Deploy Proxy + Delete and Undeploy Proxy' ||
-    inputs.create_proxy == 'true' && 'Create Proxy' ||
-    inputs.deploy_proxy == 'true' && 'Deploy Proxy' ||
-    inputs.delete_undeploy_api_proxy == 'true' && 'Delete and Undeploy Proxy'
+    inputs.create_proxy && inputs.deploy_proxy && inputs.delete_undeploy_api_proxy && 'Create Proxy + Deploy Proxy + Delete and Undeploy Proxy' ||
+    inputs.create_proxy && inputs.deploy_proxy && 'Create Proxy + Deploy Proxy' ||
+    inputs.create_proxy && inputs.delete_undeploy_api_proxy && 'Create Proxy + Delete and Undeploy Proxy' ||
+    inputs.deploy_proxy && inputs.delete_undeploy_api_proxy && 'Deploy Proxy + Delete and Undeploy Proxy' ||
+    inputs.create_proxy && 'Create Proxy' ||
+    inputs.deploy_proxy && 'Deploy Proxy' ||
+    inputs.delete_undeploy_api_proxy && 'Delete and Undeploy Proxy'
   }}
 
 jobs:
