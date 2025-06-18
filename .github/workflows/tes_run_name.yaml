@@ -1,0 +1,35 @@
+name: Proxy Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_proxy:
+        description: 'Create Proxy'
+        required: true
+        default: 'false'
+      deploy_proxy:
+        description: 'Deploy Proxy'
+        required: true
+        default: 'false'
+      delete_undeploy_api_proxy:
+        description: 'Delete & Undeploy Proxy'
+        required: true
+        default: 'false'
+
+run-name: >-
+  ${{ 
+    (toLower(inputs.create_proxy) == 'true' && 'Create Proxy' || '') +
+    (toLower(inputs.deploy_proxy) == 'true' && (toLower(inputs.create_proxy) == 'true' && ' + Deploy Proxy' || 'Deploy Proxy') || '') +
+    (toLower(inputs.delete_undeploy_api_proxy) == 'true' && ((toLower(inputs.create_proxy) == 'true' || toLower(inputs.deploy_proxy) == 'true') && ' + Delete and Undeploy Proxy' || 'Delete and Undeploy Proxy') || '') ||
+    'No Actions Selected'
+  }}
+
+jobs:
+  print-selection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show selected actions
+        run: |
+          echo "create_proxy: ${{ inputs.create_proxy }}"
+          echo "deploy_proxy: ${{ inputs.deploy_proxy }}"
+          echo "delete_undeploy_api_proxy: ${{ inputs.delete_undeploy_api_proxy }}"
