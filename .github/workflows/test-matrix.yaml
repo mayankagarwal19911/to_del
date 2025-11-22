@@ -96,17 +96,58 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Write pipeline output to deleted.txt; don't fail if no matches
-          { 
-            git diff --name-status "${{ steps.shas.outputs.BASE }}" "${{ steps.shas.outputs.HEAD }}" -- dev/ \
-              | awk '$1=="D"{print $2}' \
-              | grep -E '\.ya?ml$'
-          } > deleted.txt || true
+          BASE="${{ steps.shas.outputs.BASE }}"
+          HEAD="${{ steps.shas.outputs.HEAD }}"
 
-          echo "Deleted YAMLs:"
+          echo "BASE=$BASE"
+          echo "HEAD=$HEAD"
+
+          collect_deleted() {
+            # $1 .. $2 are SHAs
+            # We intentionally DO NOT pass a pathspec here so we can correctly
+            # detect renames out of dev/ (R.. old->new where new is outside dev/)
+            git diff --name-status "$1" "$2" || true
+          }
+
+          # --- get name-status safely, with fallbacks ---
+          if [[ -z "${BASE:-}" || "$BASE" =~ ^0+$ ]]; then
+            echo "BASE is empty/zero; using single-commit scan at HEAD"
+            ns=$(git diff-tree --no-commit-id -r --name-status "$HEAD" || true)
+          else
+            ns=$(collect_deleted "$BASE" "$HEAD")
+            if [[ -z "$ns" ]]; then
+              echo "No changes vs BASE..HEAD; trying HEAD^..HEAD as fallback"
+              ns=$(collect_deleted "HEAD^" "$HEAD")
+            fi
+          fi
+
+          echo "---- name-status ----"
+          printf '%s\n' "$ns"
+          echo "---------------------"
+
+          # --- strict deletes under dev/ ---
+          deleted_strict=$(printf '%s\n' "$ns" \
+            | awk -F'\t' '$1=="D" && $2 ~ /^dev\// {print $2}' \
+            | grep -E '\.ya?ml$' || true)
+
+          # --- renames OUT of dev/ treated as deletion from dev/ ---
+          # R100  dev/foo.yaml<TAB>otherdir/foo.yaml  (count as deletion of dev/foo.yaml)
+          deleted_renamed_out=$(printf '%s\n' "$ns" \
+            | awk -F'\t' '$1 ~ /^R/ {print $2 "\t" $3}' \
+            | awk -F'\t' '$1 ~ /^dev\// && $2 !~ /^dev\//' \
+            | grep -E '\.ya?ml$' \
+            | awk '{print $1}' || true)
+
+          # Merge, uniq, write to file
+          {
+            printf '%s\n' "$deleted_strict"
+            printf '%s\n' "$deleted_renamed_out"
+          } | awk 'NF' | sort -u > deleted.txt
+
+          echo "Deleted YAMLs (including renames out of dev/):"
           cat deleted.txt || true
 
-          # Convert to compact JSON array
+          # JSON + counts
           deleted_json=$(jq -R -s -c 'split("\n") | map(select(length>0))' < deleted.txt)
 
           {
