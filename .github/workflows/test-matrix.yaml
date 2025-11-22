@@ -38,9 +38,20 @@ jobs:
       - name: Prepare JSON for matrix
         id: prepare
         run: |
-          files=$(awk NF changed.txt | jq -R . | jq -s .)
-          echo "files_json=$files" >> "$GITHUB_OUTPUT"
-          echo "count=$(echo "$files" | jq length)" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+      
+          # Build JSON array from changed.txt, trimming blanks/whitespace
+          files_json=$(sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//' changed.txt \
+            | awk 'NF' \
+            | jq -R -s -c 'split("\n") | map(select(length>0))')
+      
+          # Write outputs (use heredoc for the JSON to avoid quoting issues)
+          echo "count=$(echo "$files_json" | jq 'length')" >> "$GITHUB_OUTPUT"
+          {
+            echo "files_json<<EOF"
+            echo "$files_json"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
   per_file:
     needs: diff
