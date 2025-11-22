@@ -100,4 +100,4 @@ jobs:
           account_id=$(yq '.account_id' "${{ matrix.file }}" || true)
           echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
       - name: Use account_id
-        run: echo "Account ID: ${{ steps.parse.outputs.account_id }}"
+        run: echo "Account ID - ${{ steps.parse.outputs.account_id }}"
