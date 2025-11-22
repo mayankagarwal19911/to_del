@@ -1,0 +1,111 @@
+name: "Terraform AWS OCR Infra Provisioning"
+
+run-name: Deploy to ${{ github.ref_name }} by @${{ github.actor }} - ${{inputs.incident}}
+
+on:
+  push:
+
+permissions:
+ id-token: write
+ contents: read
+ 
+# jobs:
+#   dev:
+#     if: github.ref_name == 'dev'
+#     uses: bcg-cpe-cloudenablement/bcg-cpe-aws-repo-master-template/.github/workflows/workflow.yml@dev
+#     with:
+#       Branch: ${{ github.ref_name }}
+#       action: ${{ inputs.action }}
+#       reporegion: ${{ inputs.reporegion }}
+#       MFA: ${{ inputs.MFA }}
+#       enablemfa: ${{ inputs.enablemfa }}
+#       repotype: ${{ inputs.repotype }}
+#       Python: 'yes'
+#       GetOrg: 'yes'
+#       SyncDb: 'no'
+#       AmiMap: 'no'
+#       Terraform: 'yes'
+#       CheckoutPath: "./tmp"
+#       RemoteCheckout: "yes" #required for load module
+#       #RemoteCheckoutRepoName: "bcg-cpe-aws-product-master" required only for account repotype
+#       RemoteCheckoutPath: "./main" #required for load module
+#       Approval: 'yes'
+#       Approver1: "['dev-approver','dev-approver2']"
+#       environment: dev
+#       run_on: ${{ inputs.run_on }}
+#       reponame: ${{ github.event.repository.name }}
+#       #module
+#       terraform-aws-s3: "v0.0.6"
+#     secrets:
+#       GH_PAT: ${{ secrets.GH_PAT }}
+#       ACCOUNTID: ${{ secrets.ACCOUNTID }}
+#       REPOACCOUNTNAME: ${{ secrets.REPOACCOUNTNAME }}
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    outputs:
+      files_json: ${{ steps.prepare.outputs.files_json }}
+      count: ${{ steps.prepare.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute base/head SHAs
+        id: shas
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "BASE=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            echo "HEAD=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "BASE=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+            echo "HEAD=${{ github.sha }}"        >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: List changed files
+        id: changed
+        run: |
+          git diff --name-only ${{ steps.shas.outputs.BASE }} ${{ steps.shas.outputs.HEAD }} > changed.txt
+          cat changed.txt || true
+
+      - name: Prepare JSON for matrix
+        id: prepare
+        run: |
+          # Build a JSON array: ["path/one","path/two",...]
+          python - <<'PY'
+          import json, sys
+          files = [l.strip() for l in open("changed.txt") if l.strip()]
+          print(f"Found {len(files)} changed files", file=sys.stderr)
+          # Emit outputs
+          print(f"files_json={json.dumps(files)}")
+          print(f"count={len(files)}")
+          PY
+          # Map Python prints to GITHUB_OUTPUT
+          while IFS='=' read -r k v; do
+            echo "$k=$v" >> "$GITHUB_OUTPUT"
+          done < <(python - <<'PY'
+          import json
+          files=[l.strip() for l in open("changed.txt") if l.strip()]
+          print("files_json="+json.dumps(json.dumps(files)))
+          print("count="+str(len(files)))
+          PY
+          )
+
+  per_file:
+    needs: diff
+    if: needs.diff.outputs.count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      # ⚠️ Matrix has a hard limit (~256 jobs) — cap it if needed.
+      matrix:
+        file: ${{ fromJson(needs.diff.outputs.files_json) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Work on one file
+        run: |
+          echo "Handling file: ${{ matrix.file }}"
+          # put your per-file logic here
+          # e.g., run linters/formatters/terraform plan selectively
