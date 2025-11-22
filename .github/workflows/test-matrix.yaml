@@ -64,6 +64,17 @@ jobs:
         run: |
           set -euo pipefail
 
+          # ---- detect deleted YAML under dev/ ----
+          deleted_yaml=$(
+            git diff --name-status "${{ steps.shas.outputs.BASE }}" "${{ steps.shas.outputs.HEAD }}" -- dev/ \
+            | awk '$1=="D"{print $2}' \
+            | grep -E '\.ya?ml$' || true
+          )
+          deleted_files_json=$(printf "%s\n" "$deleted_yaml" | jq -R -s -c 'split("\n") | map(select(length>0))')
+          [ -z "${deleted_files_json:-}" ] && deleted_files_json='[]'
+          deleted_count=$(jq -r 'length' <<<"$deleted_files_json")
+
+          # ---- build list of YAMLs to process (changed or all on .tf change) ----
           if grep -Eq '^dev/.*\.tf$' changed.txt; then
             echo "Terraform change detected -> include ALL YAML under dev/"
             files_json=$(
@@ -89,10 +100,23 @@ jobs:
           echo "count=$(jq -r 'length' <<<"$files_json")" >> "$GITHUB_OUTPUT"
           echo "Matrix will run for $(jq -r 'length' <<<"$files_json") file(s)."
 
+          # ---- outputs ----
+          {
+            echo "files_json<<EOF"
+            echo "$files_json"
+            echo "EOF"
+            echo "count=$count"
+            echo "deleted_files_json<<EOF"
+            echo "$deleted_files_json"
+            echo "EOF"
+            echo "deleted_count=$deleted_count"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Matrix: $count changed YAML(s); $deleted_count deleted YAML(s)."
 
   per_changed_yaml:
     needs: diff
-    if: needs.diff.outputs.count != '0'
+    if: needs.diff.outputs.count != '0' && needs.diff.outputs.deleted_count == '0'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -119,4 +143,20 @@ jobs:
           echo "This job handled file: ${{ matrix.file }}"
           echo "Account ID from YAML: ${{ steps.parse.outputs.account_id }}"
 
-  
+  per_deleted_yaml:
+    needs: diff
+    if: needs.diff.outputs.deleted_count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        file: ${{ fromJson(needs.diff.outputs.deleted_files_json) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Handle deleted YAML
+        run: |
+          echo "YAML deleted: ${{ matrix.file }}"
+          # TODO: put your cleanup / drift handling here
+          # e.g., trigger a destroy, update state, notify, etc.
