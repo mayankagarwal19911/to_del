@@ -39,24 +39,27 @@ jobs:
           echo "Changed under dev/:"
           cat changed.txt || true
 
-      - name: Prepare JSON for matrix (YAMLs under dev/)
+      - name: Prepare JSON for matrix (only YAML under dev/)
         id: prepare
         run: |
           set -euo pipefail
-          files_json=$(
-            sed -E 's/^[[:space:]]+|[[:space:]]+$//g' changed.txt \
-            | awk 'NF' \
-            | grep -E '^dev/.*\.(ya?ml)$' || true \
-            | jq -R -s -c 'split("\n")|map(select(length>0))'
-          )
-          [ -z "$files_json" ] && files_json='[]'
 
-          echo "count=$(echo "$files_json" | jq 'length')" >> "$GITHUB_OUTPUT"
+          # Build ONE compact JSON array from matching lines
+          files_json=$(grep -E '^dev/.*\.(ya?ml)$' changed.txt 2>/dev/null \
+            | jq -R -s -c 'split("\n") | map(select(length>0))')
+
+          # Fallback to [] if empty/undefined
+          [ -z "${files_json:-}" ] && files_json='[]'
+
+          # Write outputs (use heredoc for JSON)
           {
             echo "files_json<<EOF"
             echo "$files_json"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
+
+          echo "count=$(jq -r 'length' <<<"$files_json")" >> "$GITHUB_OUTPUT"
+
 
   per_changed_yaml:
     needs: diff
