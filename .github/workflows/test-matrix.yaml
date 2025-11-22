@@ -32,60 +32,136 @@ jobs:
             echo "HEAD=${{ github.sha }}"        >> "$GITHUB_OUTPUT"
           fi
 
-      # We will put if dev or prod condition to define folder specific changes.
-      - name: List changed files
-        run: |
-          git diff --name-only "${{ steps.shas.outputs.BASE }}" "${{ steps.shas.outputs.HEAD }}" -- dev/ > changed.txt
-          echo "Changed under dev/:"
-          cat changed.txt || true
+      # # We will put if dev or prod condition to define folder specific changes.
+      # - name: List changed files
+      #   run: |
+      #     git diff --name-only "${{ steps.shas.outputs.BASE }}" "${{ steps.shas.outputs.HEAD }}" -- dev/ > changed.txt
+      #     echo "Changed under dev/:"
+      #     cat changed.txt || true
 
-      - name: Prepare JSON for matrix (only YAML under dev/)
+      # - name: Prepare JSON for matrix (only YAML under dev/)
+      #   id: prepare
+      #   run: |
+      #     set -euo pipefail
+
+      #     # Build ONE compact JSON array from matching lines
+      #     files_json=$(grep -E '^dev/.*\.(ya?ml)$' changed.txt 2>/dev/null \
+      #       | jq -R -s -c 'split("\n") | map(select(length>0))')
+
+      #     # Fallback to [] if empty/undefined
+      #     [ -z "${files_json:-}" ] && files_json='[]'
+
+      #     # Write outputs (use heredoc for JSON)
+      #     {
+      #       echo "files_json<<EOF"
+      #       echo "$files_json"
+      #       echo "EOF"
+      #     } >> "$GITHUB_OUTPUT"
+      #     echo "count=$(jq -r 'length' <<<"$files_json")" >> "$GITHUB_OUTPUT"
+
+      - name: Build matrix (changed YAMLs vs ALL YAMLs on .tf change)
         id: prepare
         run: |
           set -euo pipefail
 
-          # Build ONE compact JSON array from matching lines
-          files_json=$(grep -E '^dev/.*\.(ya?ml)$' changed.txt 2>/dev/null \
-            | jq -R -s -c 'split("\n") | map(select(length>0))')
+          BASE='${{ steps.shas.outputs.BASE }}'
+          HEAD='${{ steps.shas.outputs.HEAD }}'
 
-          # Fallback to [] if empty/undefined
-          [ -z "${files_json:-}" ] && files_json='[]'
+          # 1) Changed files under dev/
+          git diff --name-only "$BASE" "$HEAD" -- dev/ > changed_dev.txt || true
+          echo "Changed under dev/:"
+          cat changed_dev.txt || true
 
-          # Write outputs (use heredoc for JSON)
+          # -> YAML changed in dev/
+          yaml_changed_json=$(
+            grep -E '^dev/.*\.(ya?ml)$' changed_dev.txt 2>/dev/null \
+            | jq -R -s -c 'split("\n")|map(select(length>0))'
+          )
+          [ -z "${yaml_changed_json:-}" ] && yaml_changed_json='[]'
+
+          # 2) Any .tf changed anywhere in repo?
+          git diff --name-only "$BASE" "$HEAD" > changed_repo.txt || true
+          if grep -qE '\.tf$' changed_repo.txt; then
+            tf_changed=true
+          else
+            tf_changed=false
+          fi
+          echo "tf_changed=$tf_changed"
+
+          # 3) ALL YAMLs currently in dev/ (for re-run when tf_changed)
+          yaml_all_json=$(
+            git ls-files -- 'dev/*.yaml' 'dev/**/*.yaml' 'dev/*.yml' 'dev/**/*.yml' 2>/dev/null \
+            | jq -R -s -c 'split("\n")|map(select(length>0))'
+          )
+          [ -z "${yaml_all_json:-}" ] && yaml_all_json='[]'
+
+          # 4) Choose matrix list
+          if [ "$tf_changed" = true ]; then
+            matrix_json="$yaml_all_json"
+            echo "Running for ALL YAMLs (due to .tf change)"
+          else
+            matrix_json="$yaml_changed_json"
+            echo "Running for CHANGED YAMLs only"
+          fi
+
+          # outputs
           {
-            echo "files_json<<EOF"
-            echo "$files_json"
+            echo "matrix_json<<EOF"
+            echo "$matrix_json"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-          echo "count=$(jq -r 'length' <<<"$files_json")" >> "$GITHUB_OUTPUT"
+          echo "count=$(jq -r 'length' <<<"$matrix_json")" >> "$GITHUB_OUTPUT"
 
-  per_changed_yaml:
+  # per_changed_yaml:
+  #   needs: diff
+  #   if: needs.diff.outputs.count != '0'
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       file: ${{ fromJson(needs.diff.outputs.files_json) }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 1
+  #     - name: Read account_id from YAML
+  #       id: parse
+  #       run: |
+  #         # show which file this job is working on
+  #         echo "Processing file: ${{ matrix.file }}"
+
+  #         # parse account_id (requires yq, preinstalled on ubuntu-latest)
+  #         account_id=$(yq '.account_id' "${{ matrix.file }}")
+  #         echo "Account ID: $account_id"
+
+  #         # export as output (so later steps or jobs can use it)
+  #         echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+
+  #     - name: Use account_id
+  #       run: |
+  #         echo "This job handled file: ${{ matrix.file }}"
+  #         echo "Account ID from YAML: ${{ steps.parse.outputs.account_id }}"
+
+  per_yaml:
     needs: diff
     if: needs.diff.outputs.count != '0'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        file: ${{ fromJson(needs.diff.outputs.files_json) }}
+        file: ${{ fromJson(needs.diff.outputs.matrix_json) }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
       - name: Read account_id from YAML
         id: parse
         run: |
-          # show which file this job is working on
-          echo "Processing file: ${{ matrix.file }}"
-
-          # parse account_id (requires yq, preinstalled on ubuntu-latest)
-          account_id=$(yq '.account_id' "${{ matrix.file }}")
-          echo "Account ID: $account_id"
-
-          # export as output (so later steps or jobs can use it)
+          echo "Processing: ${{ matrix.file }}"
+          account_id=$(yq '.account_id' "${{ matrix.file }}" || true)
           echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
 
       - name: Use account_id
         run: |
-          echo "This job handled file: ${{ matrix.file }}"
-          echo "Account ID from YAML: ${{ steps.parse.outputs.account_id }}"
+          echo "Account ID: ${{ steps.parse.outputs.account_id }}"
 
   
