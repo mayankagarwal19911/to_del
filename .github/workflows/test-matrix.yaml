@@ -38,13 +38,9 @@ jobs:
       - name: Prepare JSON for matrix
         id: prepare
         run: |
-          python - <<'PY'
-          import json, sys
-          files = [l.strip() for l in open("changed.txt") if l.strip()]
-          # emit outputs
-          print(f"files_json={json.dumps(json.dumps(files))}")
-          print(f"count={len(files)}")
-          PY | while IFS='=' read -r k v; do echo "$k=$v" >> "$GITHUB_OUTPUT"; done
+          files=$(awk NF changed.txt | jq -R . | jq -s .)
+          echo "files_json=$files" >> "$GITHUB_OUTPUT"
+          echo "count=$(echo "$files" | jq length)" >> "$GITHUB_OUTPUT"
 
   per_file:
     needs: diff
