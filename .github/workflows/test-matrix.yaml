@@ -57,9 +57,7 @@ jobs:
             echo "$files_json"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-
           echo "count=$(jq -r 'length' <<<"$files_json")" >> "$GITHUB_OUTPUT"
-
 
   per_changed_yaml:
     needs: diff
