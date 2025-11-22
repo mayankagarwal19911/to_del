@@ -1,0 +1,8 @@
+account_id: 116981802879
+resources:
+  - type: s3_bucket
+    s3_info:
+      bucket_name: use_case_1-ocr-bucket
+      region:
+
+      
