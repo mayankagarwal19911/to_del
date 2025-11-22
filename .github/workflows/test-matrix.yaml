@@ -133,7 +133,7 @@ jobs:
 
           echo "Matrix will run for $(jq -r 'length' /tmp/files.json) file(s)."
           cat /tmp/files.json
-          
+
   per_changed_yaml:
     needs: diff
     if: needs.diff.outputs.count != '0'
@@ -165,19 +165,19 @@ jobs:
 
   
     per_deleted_yaml:
-    needs: diff
-    if: needs.diff.outputs.deleted_count != '0'
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        file: ${{ fromJson(needs.diff.outputs.deleted_files_json) }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      needs: diff
+      if: needs.diff.outputs.deleted_count != '0'
+      runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          file: ${{ fromJson(needs.diff.outputs.deleted_files_json) }}
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            fetch-depth: 1
 
-      - name: Handle deleted YAML
-        run: |
-          echo "YAML deleted: ${{ matrix.file }}"
-          # TODO: put your cleanup / drift handling here
-          # e.g., trigger a destroy, update state, notify, etc.
+        - name: Handle deleted YAML
+          run: |
+            echo "YAML deleted: ${{ matrix.file }}"
+            # TODO: put your cleanup / drift handling here
+            # e.g., trigger a destroy, update state, notify, etc.
