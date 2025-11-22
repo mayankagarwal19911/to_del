@@ -8,39 +8,6 @@ on:
 permissions:
  id-token: write
  contents: read
- 
-# jobs:
-#   dev:
-#     if: github.ref_name == 'dev'
-#     uses: bcg-cpe-cloudenablement/bcg-cpe-aws-repo-master-template/.github/workflows/workflow.yml@dev
-#     with:
-#       Branch: ${{ github.ref_name }}
-#       action: ${{ inputs.action }}
-#       reporegion: ${{ inputs.reporegion }}
-#       MFA: ${{ inputs.MFA }}
-#       enablemfa: ${{ inputs.enablemfa }}
-#       repotype: ${{ inputs.repotype }}
-#       Python: 'yes'
-#       GetOrg: 'yes'
-#       SyncDb: 'no'
-#       AmiMap: 'no'
-#       Terraform: 'yes'
-#       CheckoutPath: "./tmp"
-#       RemoteCheckout: "yes" #required for load module
-#       #RemoteCheckoutRepoName: "bcg-cpe-aws-product-master" required only for account repotype
-#       RemoteCheckoutPath: "./main" #required for load module
-#       Approval: 'yes'
-#       Approver1: "['dev-approver','dev-approver2']"
-#       environment: dev
-#       run_on: ${{ inputs.run_on }}
-#       reponame: ${{ github.event.repository.name }}
-#       #module
-#       terraform-aws-s3: "v0.0.6"
-#     secrets:
-#       GH_PAT: ${{ secrets.GH_PAT }}
-#       ACCOUNTID: ${{ secrets.ACCOUNTID }}
-#       REPOACCOUNTNAME: ${{ secrets.REPOACCOUNTNAME }}
-
 jobs:
   diff:
     runs-on: ubuntu-latest
@@ -64,7 +31,6 @@ jobs:
           fi
 
       - name: List changed files
-        id: changed
         run: |
           git diff --name-only ${{ steps.shas.outputs.BASE }} ${{ steps.shas.outputs.HEAD }} > changed.txt
           cat changed.txt || true
@@ -72,32 +38,19 @@ jobs:
       - name: Prepare JSON for matrix
         id: prepare
         run: |
-          # Build a JSON array: ["path/one","path/two",...]
           python - <<'PY'
           import json, sys
           files = [l.strip() for l in open("changed.txt") if l.strip()]
-          print(f"Found {len(files)} changed files", file=sys.stderr)
-          # Emit outputs
-          print(f"files_json={json.dumps(files)}")
+          # emit outputs
+          print(f"files_json={json.dumps(json.dumps(files))}")
           print(f"count={len(files)}")
-          PY
-          # Map Python prints to GITHUB_OUTPUT
-          while IFS='=' read -r k v; do
-            echo "$k=$v" >> "$GITHUB_OUTPUT"
-          done < <(python - <<'PY'
-          import json
-          files=[l.strip() for l in open("changed.txt") if l.strip()]
-          print("files_json="+json.dumps(json.dumps(files)))
-          print("count="+str(len(files)))
-          PY
-          )
+          PY | while IFS='=' read -r k v; do echo "$k=$v" >> "$GITHUB_OUTPUT"; done
 
   per_file:
     needs: diff
     if: needs.diff.outputs.count != '0'
     runs-on: ubuntu-latest
     strategy:
-      # ⚠️ Matrix has a hard limit (~256 jobs) — cap it if needed.
       matrix:
         file: ${{ fromJson(needs.diff.outputs.files_json) }}
     steps:
@@ -107,5 +60,4 @@ jobs:
       - name: Work on one file
         run: |
           echo "Handling file: ${{ matrix.file }}"
-          # put your per-file logic here
-          # e.g., run linters/formatters/terraform plan selectively
+          # your per-file logic here
