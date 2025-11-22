@@ -62,8 +62,8 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-          # 2) Detect any .tf change anywhere in repo
-          git diff --name-only "${{ steps.shas.outputs.BASE }}" "${{ steps.shas.outputs.HEAD }}" > changed_repo.txt
+          # 2) Detect any .tf change anywhere in repo (use dynamic SHAs; don't fail if empty)
+          git diff --name-only "${{ steps.shas.outputs.BASE }}" "${{ steps.shas.outputs.HEAD }}" > changed_repo.txt || true
           if grep -qE '\.tf$' changed_repo.txt; then
             echo "tf_changed=true" >> "$GITHUB_OUTPUT"
           else
