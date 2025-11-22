@@ -1,21 +1,21 @@
-name: per-yaml-or-all-on-tf
+name: "Terraform AWS OCR Infra Provisioning"
+
+run-name: Deploy to ${{ github.ref_name }} by @${{ github.actor }} - ${{inputs.incident}}
+
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   push:
     paths:
       - 'dev/**' 
-      
 
+permissions:
+ id-token: write
+ contents: read
 jobs:
   diff:
     runs-on: ubuntu-latest
     outputs:
-      yaml_changed_json: ${{ steps.prepare.outputs.yaml_changed_json }}
-      yaml_changed_count: ${{ steps.prepare.outputs.yaml_changed_count }}
-      tf_changed: ${{ steps.prepare.outputs.tf_changed }}
-      yaml_all_json: ${{ steps.prepare.outputs.yaml_all_json }}
-      yaml_all_count: ${{ steps.prepare.outputs.yaml_all_count }}
+      files_json: ${{ steps.prepare.outputs.files_json }}
+      count: ${{ steps.prepare.outputs.count }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,84 +37,51 @@ jobs:
           git diff --name-only ${{ steps.shas.outputs.BASE }} ${{ steps.shas.outputs.HEAD }} > changed.txt
           cat changed.txt || true
 
-      - name: Prepare outputs (yaml_changed / tf_changed / yaml_all)
+      - name: Prepare JSON for matrix
         id: prepare
         run: |
           set -euo pipefail
-
-          # Changed YAML (under folder)
-          yaml_changed_json=$(
-            sed -E 's/^[[:space:]]+|[[:space:]]+$//g' changed.txt \
+      
+          # Build JSON array from changed.txt, trimming blanks/whitespace
+          files_json=$(sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//' changed.txt \
             | awk 'NF' \
-            | grep -E '\.(ya?ml)$' || true \
-            | jq -R -s -c 'split("\n")|map(select(length>0))'
-          )
-          [ -z "$yaml_changed_json" ] && yaml_changed_json='[]'
-
-          # Did any .tf change (under folder)?
-          tf_changed=false
-          if grep -qE '\.tf$' changed.txt; then tf_changed=true; fi
-
-          # All YAML files currently tracked in the folder (for the "run again" case)
-          FOLDER='configs'   # <--- same folder as above
-          yaml_all_json=$(
-            git ls-files -- "$FOLDER/**/*.yaml" "$FOLDER/**/*.yml" 2>/dev/null \
-            | jq -R -s -c 'split("\n")|map(select(length>0))'
-          )
-          [ -z "$yaml_all_json" ] && yaml_all_json='[]'
-
-          # Write outputs (use heredocs for JSON)
-          echo "yaml_changed_count=$(echo "$yaml_changed_json" | jq 'length')" >> "$GITHUB_OUTPUT"
-          echo "yaml_all_count=$(echo "$yaml_all_json" | jq 'length')"         >> "$GITHUB_OUTPUT"
-          echo "tf_changed=$tf_changed"                                        >> "$GITHUB_OUTPUT"
-
+            | jq -R -s -c 'split("\n") | map(select(length>0))')
+      
+          # Write outputs (use heredoc for the JSON to avoid quoting issues)
+          echo "count=$(echo "$files_json" | jq 'length')" >> "$GITHUB_OUTPUT"
           {
-            echo "yaml_changed_json<<EOF"
-            echo "$yaml_changed_json"
-            echo "EOF"
-            echo "yaml_all_json<<EOF"
-            echo "$yaml_all_json"
+            echo "files_json<<EOF"
+            echo "$files_json"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-  # 1) Normal run: once per CHANGED YAML
   per_changed_yaml:
     needs: diff
-    if: needs.diff.outputs.yaml_changed_count != '0'
+    if: needs.diff.outputs.count != '0'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        file: ${{ fromJson(needs.diff.outputs.yaml_changed_json) }}
+        file: ${{ fromJson(needs.diff.outputs.files_json) }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Process changed YAML
+      - name: Read account_id from YAML
         id: parse
         run: |
-          echo "Changed YAML: ${{ matrix.file }}"
-          account_id=$(yq '.account_id' "${{ matrix.file }}" || true)
-          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
-      - name: Use account_id
-        run: echo "Account ID -  ${{ steps.parse.outputs.account_id }}"
+          # show which file this job is working on
+          echo "Processing file: ${{ matrix.file }}"
 
-  # 2) Extra run when ANY .tf changed: once per ALL YAML
-  per_all_yaml_when_tf_changed:
-    needs: diff
-    if: needs.diff.outputs.tf_changed == 'true' && needs.diff.outputs.yaml_all_count != '0'
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        file: ${{ fromJson(needs.diff.outputs.yaml_all_json) }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Process ALL YAML due to TF change
-        id: parse
-        run: |
-          echo ".tf changed; processing YAML: ${{ matrix.file }}"
-          account_id=$(yq '.account_id' "${{ matrix.file }}" || true)
+          # parse account_id (requires yq, preinstalled on ubuntu-latest)
+          account_id=$(yq '.account_id' "${{ matrix.file }}")
+          echo "Account ID: $account_id"
+
+          # export as output (so later steps or jobs can use it)
           echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+
       - name: Use account_id
-        run: echo "Account ID -  ${{ steps.parse.outputs.account_id }}"
+        run: |
+          echo "This job handled file: ${{ matrix.file }}"
+          echo "Account ID from YAML: ${{ steps.parse.outputs.account_id }}"
+
+  
