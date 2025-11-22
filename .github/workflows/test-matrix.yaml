@@ -64,15 +64,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          # If any Terraform files changed under dev/, include ALL YAML under dev/
           if grep -Eq '^dev/.*\.tf$' changed.txt; then
             echo "Terraform change detected -> include ALL YAML under dev/"
-            files_json=$(git ls-files -- 'dev/**/*.yaml' 'dev/**/*.yml' \
-              | jq -R -s -c 'split("\n") | map(select(length>0))')
+            files_json=$(
+              find dev -type f \( -name '*.yaml' -o -name '*.yml' \) -print \
+              | jq -R -s -c 'split("\n") | map(select(length>0))'
+            )
           else
             echo "No Terraform change -> include only CHANGED YAML under dev/"
-            files_json=$(grep -E '^dev/.*\.(ya?ml)$' changed.txt 2>/dev/null \
-              | jq -R -s -c 'split("\n") | map(select(length>0))')
+            files_json=$(
+              grep -E '^dev/.*\.(ya?ml)$' changed.txt 2>/dev/null \
+              | jq -R -s -c 'split("\n") | map(select(length>0))'
+            )
           fi
 
           # Fallback to [] if empty
@@ -84,6 +87,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
           echo "count=$(jq -r 'length' <<<"$files_json")" >> "$GITHUB_OUTPUT"
+          echo "Matrix will run for $(jq -r 'length' <<<"$files_json") file(s)."
 
 
   per_changed_yaml:
