@@ -32,22 +32,25 @@ jobs:
             echo "HEAD=${{ github.sha }}"        >> "$GITHUB_OUTPUT"
           fi
 
+      # We will put if dev or prod condition to define folder specific changes.
       - name: List changed files
         run: |
-          git diff --name-only ${{ steps.shas.outputs.BASE }} ${{ steps.shas.outputs.HEAD }} > changed.txt
+          git diff --name-only "${{ steps.shas.outputs.BASE }}" "${{ steps.shas.outputs.HEAD }}" -- dev/ > changed.txt
+          echo "Changed under dev/:"
           cat changed.txt || true
 
-      - name: Prepare JSON for matrix
+      - name: Prepare JSON for matrix (YAMLs under dev/)
         id: prepare
         run: |
           set -euo pipefail
-      
-          # Build JSON array from changed.txt, trimming blanks/whitespace
-          files_json=$(sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//' changed.txt \
+          files_json=$(
+            sed -E 's/^[[:space:]]+|[[:space:]]+$//g' changed.txt \
             | awk 'NF' \
-            | jq -R -s -c 'split("\n") | map(select(length>0))')
-      
-          # Write outputs (use heredoc for the JSON to avoid quoting issues)
+            | grep -E '^dev/.*\.(ya?ml)$' || true \
+            | jq -R -s -c 'split("\n")|map(select(length>0))'
+          )
+          [ -z "$files_json" ] && files_json='[]'
+
           echo "count=$(echo "$files_json" | jq 'length')" >> "$GITHUB_OUTPUT"
           {
             echo "files_json<<EOF"
