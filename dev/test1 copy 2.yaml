@@ -1,6 +1,6 @@
-account_id: copy 1
+account_id: copy 2
 resources:
   - type: s3_bucket
     s3_info:
       bucket_name: use_case_1-ocr-bucket
-      region: 
+      region:
