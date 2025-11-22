@@ -53,7 +53,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-  per_file:
+  per_changed_yaml:
     needs: diff
     if: needs.diff.outputs.count != '0'
     runs-on: ubuntu-latest
@@ -81,3 +81,23 @@ jobs:
         run: |
           echo "This job handled file: ${{ matrix.file }}"
           echo "Account ID from YAML: ${{ steps.parse.outputs.account_id }}"
+
+  per_all_yaml_when_tf_changed:
+    needs: diff
+    if: needs.diff.outputs.tf_changed == 'true' && needs.diff.outputs.yaml_all_count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        file: ${{ fromJson(needs.diff.outputs.yaml_all_json) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Process ALL YAML due to TF change
+        id: parse
+        run: |
+          echo ".tf changed; processing YAML: ${{ matrix.file }}"
+          account_id=$(yq '.account_id' "${{ matrix.file }}" || true)
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+      - name: Use account_id
+        run: echo "Account ID: ${{ steps.parse.outputs.account_id }}"
