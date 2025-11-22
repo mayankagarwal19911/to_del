@@ -96,10 +96,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Capture deleted YAMLs (status "D") under dev/
-          git diff --name-status "${{ steps.shas.outputs.BASE }}" "${{ steps.shas.outputs.HEAD }}" -- dev/ \
-            | awk '$1=="D"{print $2}' \
-            | grep -E '\.ya?ml$' || true > deleted.txt
+          # Write pipeline output to deleted.txt; don't fail if no matches
+          { 
+            git diff --name-status "${{ steps.shas.outputs.BASE }}" "${{ steps.shas.outputs.HEAD }}" -- dev/ \
+              | awk '$1=="D"{print $2}' \
+              | grep -E '\.ya?ml$'
+          } > deleted.txt || true
 
           echo "Deleted YAMLs:"
           cat deleted.txt || true
@@ -107,15 +109,15 @@ jobs:
           # Convert to compact JSON array
           deleted_json=$(jq -R -s -c 'split("\n") | map(select(length>0))' < deleted.txt)
 
-          # Output JSON and count
           {
             echo "deleted_files_json<<EOF"
             echo "$deleted_json"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
+
           echo "deleted_count=$(jq -r 'length' <<<"$deleted_json")" >> "$GITHUB_OUTPUT"
           echo "Found $(jq -r 'length' <<<"$deleted_json") deleted YAML file(s)."
-          
+
   per_changed_yaml:
     needs: diff
     if: needs.diff.outputs.count != '0' && needs.diff.outputs.deleted_count == '0'
