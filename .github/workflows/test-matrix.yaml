@@ -1,21 +1,21 @@
-name: "Terraform AWS OCR Infra Provisioning"
-
-run-name: Deploy to ${{ github.ref_name }} by @${{ github.actor }} - ${{inputs.incident}}
-
+name: per-yaml-or-all-on-tf
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   push:
     paths:
       - 'dev/**' 
+      
 
-permissions:
- id-token: write
- contents: read
 jobs:
   diff:
     runs-on: ubuntu-latest
     outputs:
-      files_json: ${{ steps.prepare.outputs.files_json }}
-      count: ${{ steps.prepare.outputs.count }}
+      yaml_changed_json: ${{ steps.prepare.outputs.yaml_changed_json }}
+      yaml_changed_count: ${{ steps.prepare.outputs.yaml_changed_count }}
+      tf_changed: ${{ steps.prepare.outputs.tf_changed }}
+      yaml_all_json: ${{ steps.prepare.outputs.yaml_all_json }}
+      yaml_all_count: ${{ steps.prepare.outputs.yaml_all_count }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,35 +77,28 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
+  # 1) Normal run: once per CHANGED YAML
   per_changed_yaml:
     needs: diff
-    if: needs.diff.outputs.count != '0'
+    if: needs.diff.outputs.yaml_changed_count != '0'
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        file: ${{ fromJson(needs.diff.outputs.files_json) }}
+        file: ${{ fromJson(needs.diff.outputs.yaml_changed_json) }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Read account_id from YAML
+      - name: Process changed YAML
         id: parse
         run: |
-          # show which file this job is working on
-          echo "Processing file: ${{ matrix.file }}"
-
-          # parse account_id (requires yq, preinstalled on ubuntu-latest)
-          account_id=$(yq '.account_id' "${{ matrix.file }}")
-          echo "Account ID: $account_id"
-
-          # export as output (so later steps or jobs can use it)
+          echo "Changed YAML: ${{ matrix.file }}"
+          account_id=$(yq '.account_id' "${{ matrix.file }}" || true)
           echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
-
       - name: Use account_id
-        run: |
-          echo "This job handled file: ${{ matrix.file }}"
-          echo "Account ID from YAML: ${{ steps.parse.outputs.account_id }}"
+        run: echo "Account ID: ${{ steps.parse.outputs.account_id }}"
 
+  # 2) Extra run when ANY .tf changed: once per ALL YAML
   per_all_yaml_when_tf_changed:
     needs: diff
     if: needs.diff.outputs.tf_changed == 'true' && needs.diff.outputs.yaml_all_count != '0'
@@ -124,4 +117,4 @@ jobs:
           account_id=$(yq '.account_id' "${{ matrix.file }}" || true)
           echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
       - name: Use account_id
-        run: echo "Account ID - ${{ steps.parse.outputs.account_id }}"
+        run: echo "Account ID: ${{ steps.parse.outputs.account_id }}"
