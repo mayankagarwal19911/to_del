@@ -1,0 +1,85 @@
+name: Detect deleted YAML under a path
+description: Outputs deleted YAML files as JSON and a count (handles renames out of the path too)
+inputs:
+  base:
+    description: Base SHA
+    required: true
+  head:
+    description: Head SHA
+    required: true
+  path:
+    description: Root path to consider (e.g., dev)
+    required: false
+    default: dev
+outputs:
+  deleted_files_json:
+    description: JSON array of deleted YAML file paths
+    value: ${{ steps.deleted.outputs.deleted_files_json }}
+  deleted_count:
+    description: Count of deleted YAML files
+    value: ${{ steps.deleted.outputs.deleted_count }}
+runs:
+  using: composite
+  steps:
+    - id: deleted
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        BASE="${{ inputs.base }}"
+        HEAD="${{ inputs.head }}"
+        ROOT="${{ inputs.path }}"
+
+        echo "BASE=$BASE"
+        echo "HEAD=$HEAD"
+        echo "ROOT=$ROOT"
+
+        collect_name_status () {
+          git diff --name-status "$1" "$2" || true
+        }
+
+        # capture name-status with safe fallbacks (first push, squash, etc.)
+        if [[ -z "${BASE:-}" || "$BASE" =~ ^0+$ ]]; then
+          echo "BASE is empty/zero; scanning HEAD only"
+          ns=$(git diff-tree --no-commit-id -r --name-status "$HEAD" || true)
+        else
+          ns=$(collect_name_status "$BASE" "$HEAD")
+          if [[ -z "$ns" ]]; then
+            echo "Empty diff for BASE..HEAD; trying HEAD^..HEAD"
+            ns=$(collect_name_status "HEAD^" "$HEAD")
+          fi
+        fi
+
+        echo "---- name-status ----"
+        printf '%s\n' "$ns"
+        echo "---------------------"
+
+        # strict deletes under ROOT
+        deleted_strict=$(printf '%s\n' "$ns" \
+          | awk -F'\t' -v R="^${ROOT}/" '$1=="D" && $2 ~ R {print $2}' \
+          | grep -E '\.ya?ml$' || true)
+
+        # renames out of ROOT count as deletion of the old path in ROOT
+        # format: R100 <old> <new>
+        deleted_renamed_out=$(printf '%s\n' "$ns" \
+          | awk -F'\t' '$1 ~ /^R/ {print $2 "\t" $3}' \
+          | awk -F'\t' -v R="^${ROOT}/" '$1 ~ R && $2 !~ R {print $1}' \
+          | grep -E '\.ya?ml$' || true)
+
+        {
+          printf '%s\n' "$deleted_strict"
+          printf '%s\n' "$deleted_renamed_out"
+        } | awk 'NF' | sort -u > deleted.txt
+
+        echo "Deleted YAMLs (incl. renames out of ${ROOT}/):"
+        cat deleted.txt || true
+
+        deleted_json=$(jq -R -s -c 'split("\n") | map(select(length>0))' < deleted.txt)
+
+        {
+          echo "deleted_files_json<<EOF"
+          echo "$deleted_json"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+        echo "deleted_count=$(jq -r 'length' <<<"$deleted_json")" >> "$GITHUB_OUTPUT"
+        echo "Found $(jq -r 'length' <<<"$deleted_json") deleted YAML file(s)."

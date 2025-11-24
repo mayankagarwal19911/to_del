@@ -1,0 +1,218 @@
+name: "Terraform AWS OCR Infra Provisioning"
+
+# Limitation: Do not delete and update YAML/.tf files simultaneously in a single commit.
+run-name: Deploy to ${{ github.ref_name }} by @${{ github.actor }} - ${{inputs.incident}}
+
+on:
+  workflow_dispatch:
+  # push:
+  #   paths:
+  #     - 'dev/**' 
+
+permissions:
+ id-token: write
+ contents: read
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    outputs:
+      # from build-yaml-matrix
+      files_json:         ${{ steps.matrix.outputs.files_json }}
+      count:              ${{ steps.matrix.outputs.count }}
+      # from detect-deleted-yaml
+      deleted_files_json: ${{ steps.deleted.outputs.deleted_files_json }}
+      deleted_count:      ${{ steps.deleted.outputs.deleted_count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute base/head SHAs
+        id: shas
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "BASE=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            echo "HEAD=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "BASE=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+            echo "HEAD=${{ github.sha }}"        >> "$GITHUB_OUTPUT"
+          fi
+
+      # We will put if dev or prod condition to define folder specific changes.
+      - name: List changed files
+        run: |
+          git diff --name-only "${{ steps.shas.outputs.BASE }}" "${{ steps.shas.outputs.HEAD }}" -- dev/ > changed.txt
+          echo "Changed under dev/:"
+          cat changed.txt || true
+
+      # - name: Prepare JSON for matrix (only YAML under dev/)
+      #   id: prepare
+      #   run: |
+      #     set -euo pipefail
+
+      #     # Build ONE compact JSON array from matching lines
+      #     files_json=$(grep -E '^dev/.*\.(ya?ml)$' changed.txt 2>/dev/null \
+      #       | jq -R -s -c 'split("\n") | map(select(length>0))')
+
+      #     # Fallback to [] if empty/undefined
+      #     [ -z "${files_json:-}" ] && files_json='[]'
+
+      #     # Write outputs (use heredoc for JSON)
+      #     {
+      #       echo "files_json<<EOF"
+      #       echo "$files_json"
+      #       echo "EOF"
+      #     } >> "$GITHUB_OUTPUT"
+      #     echo "count=$(jq -r 'length' <<<"$files_json")" >> "$GITHUB_OUTPUT"
+
+      # - name: Prepare JSON for matrix
+      #   id: prepare
+      #   run: |
+      #     set -euo pipefail
+
+      #     if grep -Eq '^dev/.*\.tf$' changed.txt; then
+      #       echo "Terraform change detected -> include ALL YAML under dev/"
+      #       files_json=$(
+      #         find dev -type f \( -name '*.yaml' -o -name '*.yml' \) -print \
+      #         | jq -R -s -c 'split("\n") | map(select(length>0))'
+      #       )
+      #     else
+      #       echo "No Terraform change -> include only CHANGED YAML under dev/"
+      #       files_json=$(
+      #         grep -E '^dev/.*\.(ya?ml)$' changed.txt 2>/dev/null \
+      #         | jq -R -s -c 'split("\n") | map(select(length>0))'
+      #       )
+      #     fi
+
+      #     # Fallback to [] if empty
+      #     [ -z "${files_json:-}" ] && files_json='[]'
+
+      #     {
+      #       echo "files_json<<EOF"
+      #       echo "$files_json"
+      #       echo "EOF"
+      #     } >> "$GITHUB_OUTPUT"
+      #     echo "count=$(jq -r 'length' <<<"$files_json")" >> "$GITHUB_OUTPUT"
+      #     echo "Matrix will run for $(jq -r 'length' <<<"$files_json") file(s)."
+
+      - name: Prepare JSON for matrix (YAML to process)
+        id: matrix
+        uses: ./.github/actions/build-yaml-matrix
+        with:
+          changed_file_list: changed.txt
+          path: dev # TODO, dynamic
+
+      - name: Detect deleted YAML under dev/
+        id: deleted
+        run: |
+          set -euo pipefail
+
+          BASE="${{ steps.shas.outputs.BASE }}"
+          HEAD="${{ steps.shas.outputs.HEAD }}"
+
+          echo "BASE=$BASE"
+          echo "HEAD=$HEAD"
+
+          collect_deleted() {
+            # $1 .. $2 are SHAs
+            # We intentionally DO NOT pass a pathspec here so we can correctly
+            # detect renames out of dev/ (R.. old->new where new is outside dev/)
+            git diff --name-status "$1" "$2" || true
+          }
+
+          # --- get name-status safely, with fallbacks ---
+          if [[ -z "${BASE:-}" || "$BASE" =~ ^0+$ ]]; then
+            echo "BASE is empty/zero; using single-commit scan at HEAD"
+            ns=$(git diff-tree --no-commit-id -r --name-status "$HEAD" || true)
+          else
+            ns=$(collect_deleted "$BASE" "$HEAD")
+            if [[ -z "$ns" ]]; then
+              echo "No changes vs BASE..HEAD; trying HEAD^..HEAD as fallback"
+              ns=$(collect_deleted "HEAD^" "$HEAD")
+            fi
+          fi
+
+          echo "---- name-status ----"
+          printf '%s\n' "$ns"
+          echo "---------------------"
+
+          # --- strict deletes under dev/ ---
+          deleted_strict=$(printf '%s\n' "$ns" \
+            | awk -F'\t' '$1=="D" && $2 ~ /^dev\// {print $2}' \
+            | grep -E '\.ya?ml$' || true)
+
+          # --- renames OUT of dev/ treated as deletion from dev/ ---
+          # R100  dev/foo.yaml<TAB>otherdir/foo.yaml  (count as deletion of dev/foo.yaml)
+          deleted_renamed_out=$(printf '%s\n' "$ns" \
+            | awk -F'\t' '$1 ~ /^R/ {print $2 "\t" $3}' \
+            | awk -F'\t' '$1 ~ /^dev\// && $2 !~ /^dev\//' \
+            | grep -E '\.ya?ml$' \
+            | awk '{print $1}' || true)
+
+          # Merge, uniq, write to file
+          {
+            printf '%s\n' "$deleted_strict"
+            printf '%s\n' "$deleted_renamed_out"
+          } | awk 'NF' | sort -u > deleted.txt
+
+          echo "Deleted YAMLs (including renames out of dev/):"
+          cat deleted.txt || true
+
+          # JSON + counts
+          deleted_json=$(jq -R -s -c 'split("\n") | map(select(length>0))' < deleted.txt)
+
+          {
+            echo "deleted_files_json<<EOF"
+            echo "$deleted_json"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "deleted_count=$(jq -r 'length' <<<"$deleted_json")" >> "$GITHUB_OUTPUT"
+          echo "Found $(jq -r 'length' <<<"$deleted_json") deleted YAML file(s)."
+
+  per_changed_yaml:
+    needs: diff
+    if: needs.diff.outputs.count != '0' && needs.diff.outputs.deleted_count == '0'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        file: ${{ fromJson(needs.diff.outputs.files_json) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Read account_id from YAML
+        id: parse
+        run: |
+          # show which file this job is working on
+          echo "Processing file: ${{ matrix.file }}"
+
+          # parse account_id (requires yq, preinstalled on ubuntu-latest)
+          account_id=$(yq '.account_id' "${{ matrix.file }}")
+          echo "Account ID: $account_id"
+
+          # export as output (so later steps or jobs can use it)
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+
+      - name: Use account_id
+        run: |
+          echo "This job handled file: ${{ matrix.file }}"
+          echo "Account ID from YAML: ${{ steps.parse.outputs.account_id }}"
+
+  per_deleted_yaml:
+    needs: diff
+    if: needs.diff.outputs.deleted_count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        file: ${{ fromJson(needs.diff.outputs.deleted_files_json) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Handle deleted YAML
+        run: |
+          echo "YAML deleted: ${{ matrix.file }}"
+          # TODO: add your cleanup/destroy/notify logic here
+          # e.g., terraform destroy for resources linked to this file, update state, etc.
