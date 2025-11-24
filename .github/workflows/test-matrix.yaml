@@ -102,17 +102,10 @@ jobs:
   per_deleted_yaml:
     needs: diff
     if: needs.diff.outputs.deleted_count != '0'
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/process-yaml.yml
     strategy:
       matrix:
         file: ${{ fromJson(needs.diff.outputs.deleted_files_json) }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Handle deleted YAML
-        run: |
-          echo "YAML deleted: ${{ matrix.file }}"
-          # TODO: add your cleanup/destroy/notify logic here
-          # e.g., terraform destroy for resources linked to this file, update state, etc.
+    with:
+      file: ${{ matrix.file }}
+      mode: deleted
