@@ -1,0 +1,53 @@
+name: Process a single YAML
+
+on:
+  workflow_call:
+    inputs:
+      file:
+        description: Full path to the YAML file (under dev/)
+        required: true
+        type: string
+      mode:
+        description: "changed | deleted"
+        required: true
+        type: string
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Log
+        run: |
+          echo "Mode: ${{ inputs.mode }}"
+          echo "File: ${{ inputs.file }}"
+
+      # Handle changed YAMLs
+      - name: Parse account_id from YAML
+        if: ${{ inputs.mode == 'changed' }}
+        id: parse
+        run: |
+          if [ ! -f "${{ inputs.file }}" ]; then
+            echo "ERROR: file does not exist at HEAD: ${{ inputs.file }}"
+            exit 1
+          fi
+          account_id=$(yq '.account_id' "${{ inputs.file }}")
+          echo "Parsed account_id: $account_id"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+
+      - name: Use account_id (changed)
+        if: ${{ inputs.mode == 'changed' }}
+        run: |
+          echo "Handled CHANGED file: ${{ inputs.file }}"
+          echo "Account ID: ${{ steps.parse.outputs.account_id }}"
+          # TODO: terraform apply / plan / etc.
+
+      # Handle deleted YAMLs
+      - name: Cleanup for deleted YAML
+        if: ${{ inputs.mode == 'deleted' }}
+        run: |
+          echo "Handled DELETED file: ${{ inputs.file }}"
+          # TODO: terraform destroy / state cleanup / notify, etc.

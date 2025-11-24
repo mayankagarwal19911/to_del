@@ -51,109 +51,53 @@ jobs:
           changed_file_list: changed.txt
           path: dev # TODO, dynamic
 
-      # - name: Detect deleted YAML under dev/
-      #   id: deleted
-      #   run: |
-      #     set -euo pipefail
-
-      #     BASE="${{ steps.shas.outputs.BASE }}"
-      #     HEAD="${{ steps.shas.outputs.HEAD }}"
-
-      #     echo "BASE=$BASE"
-      #     echo "HEAD=$HEAD"
-
-      #     collect_deleted() {
-      #       # $1 .. $2 are SHAs
-      #       # We intentionally DO NOT pass a pathspec here so we can correctly
-      #       # detect renames out of dev/ (R.. old->new where new is outside dev/)
-      #       git diff --name-status "$1" "$2" || true
-      #     }
-
-      #     # --- get name-status safely, with fallbacks ---
-      #     if [[ -z "${BASE:-}" || "$BASE" =~ ^0+$ ]]; then
-      #       echo "BASE is empty/zero; using single-commit scan at HEAD"
-      #       ns=$(git diff-tree --no-commit-id -r --name-status "$HEAD" || true)
-      #     else
-      #       ns=$(collect_deleted "$BASE" "$HEAD")
-      #       if [[ -z "$ns" ]]; then
-      #         echo "No changes vs BASE..HEAD; trying HEAD^..HEAD as fallback"
-      #         ns=$(collect_deleted "HEAD^" "$HEAD")
-      #       fi
-      #     fi
-
-      #     echo "---- name-status ----"
-      #     printf '%s\n' "$ns"
-      #     echo "---------------------"
-
-      #     # --- strict deletes under dev/ ---
-      #     deleted_strict=$(printf '%s\n' "$ns" \
-      #       | awk -F'\t' '$1=="D" && $2 ~ /^dev\// {print $2}' \
-      #       | grep -E '\.ya?ml$' || true)
-
-      #     # --- renames OUT of dev/ treated as deletion from dev/ ---
-      #     # R100  dev/foo.yaml<TAB>otherdir/foo.yaml  (count as deletion of dev/foo.yaml)
-      #     deleted_renamed_out=$(printf '%s\n' "$ns" \
-      #       | awk -F'\t' '$1 ~ /^R/ {print $2 "\t" $3}' \
-      #       | awk -F'\t' '$1 ~ /^dev\// && $2 !~ /^dev\//' \
-      #       | grep -E '\.ya?ml$' \
-      #       | awk '{print $1}' || true)
-
-      #     # Merge, uniq, write to file
-      #     {
-      #       printf '%s\n' "$deleted_strict"
-      #       printf '%s\n' "$deleted_renamed_out"
-      #     } | awk 'NF' | sort -u > deleted.txt
-
-      #     echo "Deleted YAMLs (including renames out of dev/):"
-      #     cat deleted.txt || true
-
-      #     # JSON + counts
-      #     deleted_json=$(jq -R -s -c 'split("\n") | map(select(length>0))' < deleted.txt)
-
-      #     {
-      #       echo "deleted_files_json<<EOF"
-      #       echo "$deleted_json"
-      #       echo "EOF"
-      #     } >> "$GITHUB_OUTPUT"
-
-      #     echo "deleted_count=$(jq -r 'length' <<<"$deleted_json")" >> "$GITHUB_OUTPUT"
-      #     echo "Found $(jq -r 'length' <<<"$deleted_json") deleted YAML file(s)."
-
       - name: Detect deleted YAML under dev/
         id: deleted
         uses: ./.github/actions/detect-deleted-yaml
         with:
           base: ${{ steps.shas.outputs.BASE }}
           head: ${{ steps.shas.outputs.HEAD }}
+          path: dev # TODO, dynamic
+
+  # per_changed_yaml:
+  #   needs: diff
+  #   if: needs.diff.outputs.count != '0' && needs.diff.outputs.deleted_count == '0'
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       file: ${{ fromJson(needs.diff.outputs.files_json) }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 1
+  #     - name: Read account_id from YAML
+  #       id: parse
+  #       run: |
+  #         # show which file this job is working on
+  #         echo "Processing file: ${{ matrix.file }}"
+
+  #         # parse account_id (requires yq, preinstalled on ubuntu-latest)
+  #         account_id=$(yq '.account_id' "${{ matrix.file }}")
+  #         echo "Account ID: $account_id"
+
+  #         # export as output (so later steps or jobs can use it)
+  #         echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+
+  #     - name: Use account_id
+  #       run: |
+  #         echo "This job handled file: ${{ matrix.file }}"
+  #         echo "Account ID from YAML: ${{ steps.parse.outputs.account_id }}"
 
   per_changed_yaml:
     needs: diff
-    if: needs.diff.outputs.count != '0' && needs.diff.outputs.deleted_count == '0'
-    runs-on: ubuntu-latest
+    if: needs.diff.outputs.count != '0'   # allow alongside deletions
+    uses: ./.github/workflows/process-yaml.yml
     strategy:
       matrix:
         file: ${{ fromJson(needs.diff.outputs.files_json) }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Read account_id from YAML
-        id: parse
-        run: |
-          # show which file this job is working on
-          echo "Processing file: ${{ matrix.file }}"
-
-          # parse account_id (requires yq, preinstalled on ubuntu-latest)
-          account_id=$(yq '.account_id' "${{ matrix.file }}")
-          echo "Account ID: $account_id"
-
-          # export as output (so later steps or jobs can use it)
-          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
-
-      - name: Use account_id
-        run: |
-          echo "This job handled file: ${{ matrix.file }}"
-          echo "Account ID from YAML: ${{ steps.parse.outputs.account_id }}"
+    with:
+      file: ${{ matrix.file }}
+      mode: changed
 
   per_deleted_yaml:
     needs: diff

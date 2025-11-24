@@ -9,8 +9,7 @@ inputs:
     required: true
   path:
     description: Root path to consider (e.g., dev)
-    required: false
-    default: dev
+    required: true
 outputs:
   deleted_files_json:
     description: JSON array of deleted YAML file paths
