@@ -161,7 +161,7 @@ jobs:
 
   per_changed_yaml:
     needs: diff
-    if: needs.diff.outputs.count != '0' && needs.diff.outputs.deleted_count == '0'
+    if: needs.diff.outputs.count != '0'
     runs-on: ubuntu-latest
     strategy:
       matrix:
