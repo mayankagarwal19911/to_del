@@ -5,7 +5,7 @@ inputs:
     description: File that lists changed paths (one per line)
     required: true
   path:
-    description: Root path to consider (e.g., dev)
+    description: Root path to consider (e.g., aws)
     required: true
 outputs:
   files_json:
@@ -22,16 +22,16 @@ runs:
       run: |
         set -euo pipefail
 
-          if grep -Eq '^dev/.*\.tf$' changed.txt; then
-            echo "Terraform change detected -> include ALL YAML under dev/"
+          if grep -Eq '^aws/.*\.tf$' changed.txt; then
+            echo "Terraform change detected -> include ALL YAML under aws/"
             files_json=$(
-              find dev -type f \( -name '*.yaml' -o -name '*.yml' \) -print \
+              find aws -type f \( -name '*.yaml' -o -name '*.yml' \) -print \
               | jq -R -s -c 'split("\n") | map(select(length>0))'
             )
           else
-            echo "No Terraform change -> include only CHANGED YAML under dev/"
+            echo "No Terraform change -> include only CHANGED YAML under aws/"
             files_json=$(
-              grep -E '^dev/.*\.(ya?ml)$' changed.txt 2>/dev/null \
+              grep -E '^aws/.*\.(ya?ml)$' changed.txt 2>/aws/null \
               | jq -R -s -c 'split("\n") | map(select(length>0))'
             )
           fi
