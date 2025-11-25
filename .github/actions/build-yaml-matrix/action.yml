@@ -5,7 +5,7 @@ inputs:
     description: File that lists changed paths (one per line)
     required: true
   path:
-    description: Root path to consider (e.g., aws)
+    description: Root path to consider (e.g., aws / gcp / azure)
     required: true
 outputs:
   files_json:
@@ -28,30 +28,52 @@ runs:
       run: |
         set -euo pipefail
 
-          if grep -Eq '^aws/.*\.tf$' changed.txt; then
-            echo "Terraform change detected -> include ALL YAML under aws/"
-            files_json=$(
-              find aws -type f \( -name '*.yaml' -o -name '*.yml' \) -print \
-              | jq -R -s -c 'split("\n") | map(select(length>0))'
-            )
-          else
-            echo "No Terraform change -> include only CHANGED YAML under aws/"
-            files_json=$(
-              grep -E '^aws/.*\.(ya?ml)$' changed.txt 2>/aws/null \
-              | jq -R -s -c 'split("\n") | map(select(length>0))'
-            )
-          fi
+        ROOT="${{ inputs.path }}"
+        CHANGED_FILE="${{ inputs.changed_file_list }}"
 
-          # Fallback to [] if empty
-          [ -z "${files_json:-}" ] && files_json='[]'
+        echo "Scanning for changes under ${ROOT}/"
+        echo "Using changed list file: ${CHANGED_FILE}"
 
-          {
-            echo "files_json<<EOF"
-            echo "$files_json"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-          echo "count=$(jq -r 'length' <<<"$files_json")" >> "$GITHUB_OUTPUT"
-          echo "Matrix will run for $(jq -r 'length' <<<"$files_json") file(s)."
+        # Ensure the changed list exists (empty if not present)
+        if [ ! -f "$CHANGED_FILE" ]; then
+          echo "Changed file list not found; creating empty file."
+          : > "$CHANGED_FILE"
+        fi
+
+        # If any .tf changed under ROOT => include ALL YAML under ROOT
+        if grep -Eq "^${ROOT}/.*\.tf$" "$CHANGED_FILE"; then
+          echo "Terraform change detected -> include ALL YAML under ${ROOT}/"
+          src=$(find "${ROOT}" -type f \( -name '*.yaml' -o -name '*.yml' \) -print | sort || true)
+        else
+          echo "No Terraform change -> include only CHANGED YAML under ${ROOT}/"
+          # IMPORTANT: keep stderr redirection to /dev/null (do NOT rewrite to ${ROOT}/null)
+          src=$(grep -E "^${ROOT}/.*\.(ya?ml)$" "$CHANGED_FILE" 2>/dev/null || true)
+        fi
+
+        # Convert to JSON
+        files_json=$(
+          printf '%s\n' "$src" \
+          | jq -R -s -c 'split("\n") | map(select(length>0))'
+        )
+
+        # Filter to files that still exist at HEAD (avoid deleted ones)
+        files_json=$(
+          jq -r '.[]' <<<"$files_json" \
+          | while read -r f; do
+              [ -f "$f" ] && echo "$f"
+            done \
+          | jq -R -s -c 'split("\n") | map(select(length>0))'
+        )
+
+        {
+          echo "files_json<<EOF"
+          echo "$files_json"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+        count=$(jq -r 'length' <<<"$files_json")
+        echo "count=${count}" >> "$GITHUB_OUTPUT"
+        echo "Matrix will run for ${count} file(s)."
 
     - name: Build {file, account_id} matrix
       shell: bash
