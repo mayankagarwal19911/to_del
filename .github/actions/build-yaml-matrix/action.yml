@@ -76,19 +76,31 @@ runs:
         echo "Matrix will run for ${count} file(s)."
 
     - name: Build {file, account_id} matrix
-      shell: bash
       id: enrich
+      shell: bash
       run: |
         set -euo pipefail
-        files_json='${{ steps.prepare.outputs.files_json }}'
-        pair_json=$(
+        # FIX: read from the correct step id ("matrix"), not "prepare"
+        files_json='${{ steps.matrix.outputs.files_json }}'
+        echo "files_json for enrich: $files_json"
+
+        matrix_json=$(
           jq -r '.[]' <<<"$files_json" \
           | while read -r f; do
               [ -f "$f" ] || continue
               acc=$(yq -r '.account_id // empty' "$f" || true)
-              [ -n "$acc" ] && printf '{"file":%s,"account_id":%s}\n' "$(jq -R <<<"$f")" "$(jq -R <<<"$acc")"
+              [ -n "$acc" ] && printf '{"file":%s,"account_id":%s}\n' \
+                "$(jq -R <<<"$f")" "$(jq -R <<<"$acc")"
             done | jq -s -c '.'
         )
-        [ -z "${pair_json:-}" ] && pair_json='[]'
-        { echo "matrix_json<<EOF"; echo "$pair_json"; echo "EOF"; } >> "$GITHUB_OUTPUT"
-        echo "matrix_count=$(jq -r 'length' <<<"$pair_json")" >> "$GITHUB_OUTPUT"
+
+        [ -z "${matrix_json:-}" ] && matrix_json='[]'
+
+        {
+          echo "matrix_json<<EOF"
+          echo "$matrix_json"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+        echo "matrix_count=$(jq -r 'length' <<<"$matrix_json")" >> "$GITHUB_OUTPUT"
+        echo "Enriched matrix has $(jq -r 'length' <<<"$matrix_json") item(s)."
