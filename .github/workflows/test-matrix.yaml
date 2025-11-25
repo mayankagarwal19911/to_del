@@ -18,6 +18,8 @@ jobs:
       # from build-yaml-matrix
       files_json:         ${{ steps.matrix.outputs.files_json }}
       count:              ${{ steps.matrix.outputs.count }}
+      matrix_json:  ${{ steps.enrich.outputs.matrix_json }}
+      matrix_count: ${{ steps.enrich.outputs.matrix_count }}
       # from detect-deleted-yaml
       deleted_files_json: ${{ steps.deleted.outputs.deleted_files_json }}
       deleted_count:      ${{ steps.deleted.outputs.deleted_count }}
@@ -58,26 +60,38 @@ jobs:
           base: ${{ steps.shas.outputs.BASE }}
           head: ${{ steps.shas.outputs.HEAD }}
           path: aws # TODO, dynamic
-
   per_changed_yaml:
     needs: diff
-    if: needs.diff.outputs.count != '0'  && needs.diff.outputs.deleted_count == '0'
-    uses: ./.github/workflows/process-yaml.yml
     strategy:
       matrix:
-        file: ${{ fromJson(needs.diff.outputs.files_json) }}
-    with:
-      file: ${{ matrix.file }}
-      mode: changed
+        include: ${{ fromJson(needs.diff.outputs.matrix_json) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print matrix values
+        run: |
+          echo "Account ID: ${{ matrix.account_id }}"
+          echo "File: ${{ matrix.file }}"
+          echo "Diff count: ${{ needs.diff.outputs.matrix_count }}"
 
-  per_deleted_yaml:
-    needs: diff
-    if: needs.diff.outputs.deleted_count != '0'
-    uses: ./.github/workflows/process-yaml.yml
-    strategy:
-      matrix:
-        file: ${{ fromJson(needs.diff.outputs.deleted_files_json) }}
-    with:
-      file: ${{ matrix.file }}
-      mode: deleted
+  # per_changed_yaml:
+  #   needs: diff
+  #   if: needs.diff.outputs.count != '0'  && needs.diff.outputs.deleted_count == '0'
+  #   uses: ./.github/workflows/process-yaml.yml
+  #   strategy:
+  #     matrix:
+  #       file: ${{ fromJson(needs.diff.outputs.files_json) }}
+  #   with:
+  #     file: ${{ matrix.file }}
+  #     mode: changed
+
+  # per_deleted_yaml:
+  #   needs: diff
+  #   if: needs.diff.outputs.deleted_count != '0'
+  #   uses: ./.github/workflows/process-yaml.yml
+  #   strategy:
+  #     matrix:
+  #       file: ${{ fromJson(needs.diff.outputs.deleted_files_json) }}
+  #   with:
+  #     file: ${{ matrix.file }}
+  #     mode: deleted
   
