@@ -46,8 +46,8 @@ runs:
           src=$(find "${ROOT}" -type f \( -name '*.yaml' -o -name '*.yml' \) -print | sort || true)
         else
           echo "No Terraform change -> include only CHANGED YAML under ${ROOT}/"
-          # IMPORTANT: keep stderr redirection to /dev/null (do NOT rewrite to ${ROOT}/null)
-          src=$(grep -E "^${ROOT}/.*\.(ya?ml)$" "$CHANGED_FILE" 2>/dev/null || true)
+          # IMPORTANT: keep stderr redirection to /aws/null (do NOT rewrite to ${ROOT}/null)
+          src=$(grep -E "^${ROOT}/.*\.(ya?ml)$" "$CHANGED_FILE" 2>/aws/null || true)
         fi
 
         # Convert to JSON

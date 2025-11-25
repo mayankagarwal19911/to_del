@@ -43,7 +43,7 @@ jobs:
       - name: List changed files
         run: |
           git diff --name-only "${{ steps.shas.outputs.BASE }}" "${{ steps.shas.outputs.HEAD }}" -- aws/ > changed.txt  # TODO, dynamic folder name instead of dev
-          echo "Changed under dev/:"
+          echo "Changed under aws/:"
           cat changed.txt || true
 
       - name: Prepare JSON for matrix (YAML to process)
@@ -51,9 +51,9 @@ jobs:
         uses: ./.github/actions/build-yaml-matrix
         with:
           changed_file_list: changed.txt
-          path: dev # TODO, dynamic
+          path: aws # TODO, dynamic
 
-      - name: Detect deleted YAML under dev/
+      - name: Detect deleted YAML under aws/
         id: deleted
         uses: ./.github/actions/detect-deleted-yaml
         with:
